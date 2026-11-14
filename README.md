@@ -39,10 +39,10 @@ lib/
 | Parte | Responsável | Métodos em `NotificationService` |
 |---|---|---|
 | Estrutura, README, local vs. push | [Letícia Beatriz da Silva Lopes](https://github.com/lehsiilva) | `NotificationService`, `main.dart` |
-| Inicialização e permissões | Pessoa 2 | `init`, `requestPermission` |
-| Canais e imediata | Pessoa 3 | `createChannels`, `showNow` |
-| Agendamento | Pessoa 4 | `scheduleInOneMinute`, `scheduleDaily`, `cancelAll` |
-| Payload e navegação | Pessoa 5 | `showWithPayload`, `getLaunchPayload`, `onTap` |
+| Inicialização e permissões | [Lucas Teixeira Reis](https://github.com/LucasReis26) | `init`, `requestPermission` |
+| Canais e imediata | [Thayná Andrade Caldeira Antunes](https://github.com/Thayna-Andrade)  | `createChannels`, `showNow` |
+| Agendamento | [Lucas Castro Nominato de Oliveira](https://github.com/LucasNominato2004) | `scheduleInOneMinute`, `scheduleDaily`, `cancelAll` |
+| Payload e navegação | [Daniel Figueiredo Pimenta](https://github.com/DanielFigues) | `showWithPayload`, `getLaunchPayload`, `onTap` |
 | Integração, UI e demo | Pessoa 6 | `main.dart`, testes |
 
 ## Permissões Android
