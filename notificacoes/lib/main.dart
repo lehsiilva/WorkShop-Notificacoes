@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'screens/detail_screen.dart';
+import 'screens/home_screen.dart';
 import 'services/notification_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Pessoa 2: descomentar quando init() estiver pronto.
-  // await NotificationService.instance.init();
+
+  // Pessoa 2: inicializa o plugin.
+  await NotificationService.instance.initialize();
+  // Pessoa 3: registra os canais Android (depois do initialize).
+  await NotificationService.instance.createChannels();
+
   runApp(const WorkshopApp());
 
   // Pessoa 5: caso o app estivesse FECHADO e foi aberto pela notificação.
@@ -27,50 +32,14 @@ class WorkshopApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
       title: 'Notificações Locais',
       theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
       routes: {
-        '/': (_) => const HomeScreen(),
+        '/': (_) => const HomeScreen(), // Pessoa 6
         '/detalhe': (_) => const DetailScreen(), // Pessoa 5
       },
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final s = NotificationService.instance;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Notificações Locais')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          FilledButton(
-            onPressed: () => s.requestPermission(), // Pessoa 2
-            child: const Text('Pedir permissão'),
-          ),
-          FilledButton(
-            onPressed: () => s.showNow(title: 'Olá', body: 'Imediata'), // Pessoa 3
-            child: const Text('Notificação imediata'),
-          ),
-          FilledButton(
-            onPressed: () => s.scheduleInOneMinute(), // Pessoa 4
-            child: const Text('Agendar para 1 minuto'),
-          ),
-          FilledButton(
-            onPressed: () => s.showWithPayload(
-              title: 'Toque aqui',
-              body: 'Abre a tela de detalhe',
-              payload: '/detalhe',
-            ), // Pessoa 5
-            child: const Text('Notificação com payload'),
-          ),
-        ],
-      ),
     );
   }
 }

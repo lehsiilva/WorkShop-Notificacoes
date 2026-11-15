@@ -9,6 +9,10 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import '../main.dart';
 
 class NotificationService {
+  // Instância única (singleton): o main.dart usa NotificationService.instance.
+  // CORREÇÃO (Pessoa 1): o contrato original tinha isso e a classe atual perdeu.
+  static final NotificationService instance = NotificationService();
+
   // Instância global do plugin
   final FlutterLocalNotificationsPlugin plugin = FlutterLocalNotificationsPlugin();
 
@@ -34,7 +38,7 @@ class NotificationService {
     );
 
     await plugin.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: onNotificationTap,
     );
   }
@@ -178,7 +182,13 @@ class NotificationService {
     // Dispara a notificação AGORA. O id identifica a notificação: usar o mesmo
     // id de novo substitui a anterior em vez de empilhar outra.
     // O payload (se houver) é repassado para a parte da Pessoa 5.
-    await plugin.show(id, title, body, details, payload: payload);
+    await plugin.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: payload,
+    );
   }
 
   /// Notificação imediata no canal de baixa importância.
@@ -210,19 +220,33 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    await plugin.show(id, title, body, details, payload: payload);
+    await plugin.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: payload,
+    );
   }
 
   // =========================================================================
   // PESSOA 4: Agendamento
   // =========================================================================
 
- Future<void> setupTimezone() async {
-    tz.initializeTimeZones();
-    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
-  } /// Agenda uma notificação (ex: para daqui a 1 minuto) com timezone
+  // CORREÇÃO: evita reinicializar o fuso a cada agendamento.
+  bool _timezoneReady = false;
 
+  /// Configura o fuso horário local (necessário para zonedSchedule).
+  Future<void> setupTimezone() async {
+    if (_timezoneReady) return;
+    tz.initializeTimeZones();
+    final String timeZoneName =
+        (await FlutterTimezone.getLocalTimezone()).identifier;
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+    _timezoneReady = true;
+  }
+
+  /// Agenda uma notificação (ex: para daqui a 1 minuto) com timezone
   Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -233,11 +257,11 @@ class NotificationService {
     await setupTimezone();
 
     await plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      const NotificationDetails(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'canal_agendamento_id',
           'Agendamentos',
@@ -247,8 +271,6 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // Importante para Doze mode
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       payload: payload,
     );
   }
@@ -258,45 +280,44 @@ class NotificationService {
     required int id,
     required String title,
     required String body,
+    int hour = 10,
+    int minute = 0,
     String? payload,
   }) async {
-    // TODO: Implementar plugin.periodicallyShow ou matchDateTimeComponents
     await setupTimezone();
-    
-    // Define um horário padrão para a notificação diária (ex: 10:00 AM)
+
+    // Horário escolhido pelo usuário (padrão 10:00). Se já passou hoje, vai para amanhã.
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, 10);
-    
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
+    } // CORREÇÃO: o if precisa fechar aqui; o agendamento fica FORA dele.
 
     await plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduledDate,
-        const NotificationDetails(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: scheduledDate,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
-            'canal_recorrente_id',
-            'Recorrentes',
-            channelDescription: 'Canal para notificações diárias',
-            importance: Importance.max,
-            priority: Priority.high,
+          'canal_recorrente_id',
+          'Recorrentes',
+          channelDescription: 'Canal para notificações diárias',
+          importance: Importance.max,
+          priority: Priority.high,
         ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time, // O segredo da repetição diária
-        payload: payload,
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time, // O segredo da repetição diária
+      payload: payload,
     );
   }
 
   /// Cancela uma notificação específica pelo ID
   Future<void> cancelNotification(int id) async {
-    // TODO: Implementar plugin.cancel(id)
-    await plugin.cancel(id);
+    await plugin.cancel(id: id);
   }
 
   // =========================================================================
