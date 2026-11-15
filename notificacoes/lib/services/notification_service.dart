@@ -2,6 +2,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+// navigatorKey vem do main.dart: permite navegar sem ter um BuildContext.
+import '../main.dart';
+
 class NotificationService {
   // Instância global do plugin
   final FlutterLocalNotificationsPlugin plugin = FlutterLocalNotificationsPlugin();
@@ -241,10 +244,58 @@ class NotificationService {
   // PESSOA 5: Payload e Navegação
   // =========================================================================
 
-  /// Callback acionado quando o usuário toca na notificação
+  // Rotas que um payload pode abrir (whitelist).
+  // Só navegamos para rotas conhecidas, evitando abrir uma rota inexistente.
+  static const List<String> _rotasPermitidas = ['/detalhe'];
+
+  /// Diz se um payload pode ser aberto como rota.
+  /// Usado no toque (app aberto/segundo plano) e no cold start (app fechado).
+  static bool rotaPermitida(String? rota) {
+    // Precisa existir, não pode ser vazia e deve estar na whitelist.
+    return rota != null && rota.isNotEmpty && _rotasPermitidas.contains(rota);
+  }
+
+  /// Estado: app ABERTO. Cria a notificação que carrega um payload.
+  /// O payload é o nome da rota que deve abrir quando o usuário tocar nela.
+  Future<void> showWithPayload({
+    required String title,
+    required String body,
+    required String payload,
+  }) async {
+    // Reaproveita a notificação imediata que a Pessoa 3 já escreveu.
+    // O id 100 é fixo: repetir o mesmo id substitui a notificação anterior.
+    await showImmediateNotification(
+      id: 100,
+      title: title,
+      body: body,
+      payload: payload,
+    );
+  }
+
+  /// Estado: app FECHADO. Lê o payload que abriu o app.
+  /// Retorna null quando o app foi aberto normalmente (sem tocar na notificação).
+  Future<String?> getLaunchPayload() async {
+    final detalhes = await plugin.getNotificationAppLaunchDetails();
+
+    // Só faz sentido devolver payload se a notificação abriu o app.
+    if (detalhes == null || !detalhes.didNotificationLaunchApp) return null;
+
+    return detalhes.notificationResponse?.payload;
+  }
+
+  /// Estado: app ABERTO ou em SEGUNDO PLANO (o toque acontece com o app vivo).
+  /// Callback acionado quando o usuário toca na notificação.
   @pragma('vm:entry-point')
   static void onNotificationTap(NotificationResponse notificationResponse) {
-    // TODO: Lógica de navegação baseada no notificationResponse.payload
-    // (Pode exigir o uso de uma GlobalKey<NavigatorState> definida no main)
+    final payload = notificationResponse.payload;
+
+    // Sem payload não existe tela de destino.
+    if (payload == null) return;
+
+    // Valida a rota com a mesma regra do cold start do main.dart.
+    if (!rotaPermitida(payload)) return;
+
+    // navigatorKey dá acesso ao Navigator mesmo sem um BuildContext.
+    navigatorKey.currentState?.pushNamed(payload);
   }
 }

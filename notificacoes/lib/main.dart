@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/detail_screen.dart';
 import 'services/notification_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -8,6 +9,16 @@ Future<void> main() async {
   // Pessoa 2: descomentar quando init() estiver pronto.
   // await NotificationService.instance.init();
   runApp(const WorkshopApp());
+
+  // Pessoa 5: caso o app estivesse FECHADO e foi aberto pela notificação.
+  // addPostFrameCallback espera o primeiro frame, quando o Navigator já existe.
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final payload = await NotificationService.instance.getLaunchPayload();
+    // Valida a rota com a mesma regra usada no toque da notificação.
+    if (payload != null && NotificationService.rotaPermitida(payload)) {
+      navigatorKey.currentState?.pushNamed(payload);
+    }
+  });
 }
 
 class WorkshopApp extends StatelessWidget {
@@ -60,17 +71,6 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class DetailScreen extends StatelessWidget {
-  const DetailScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text('Tela aberta pela notificação')),
     );
   }
 }
