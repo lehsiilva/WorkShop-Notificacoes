@@ -2,6 +2,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 // navigatorKey vem do main.dart: permite navegar sem ter um BuildContext.
 import '../main.dart';
 
@@ -214,7 +217,12 @@ class NotificationService {
   // PESSOA 4: Agendamento
   // =========================================================================
 
-  /// Agenda uma notificação (ex: para daqui a 1 minuto) com timezone
+ Future<void> setupTimezone() async {
+    tz.initializeTimeZones();
+    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+  } /// Agenda uma notificação (ex: para daqui a 1 minuto) com timezone
+
   Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -222,7 +230,27 @@ class NotificationService {
     required DateTime scheduledDate,
     String? payload,
   }) async {
-    // TODO: Implementar plugin.zonedSchedule com fuso horário
+    await setupTimezone();
+
+    await plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tz.TZDateTime.from(scheduledDate, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'canal_agendamento_id',
+          'Agendamentos',
+          channelDescription: 'Canal para notificações agendadas',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // Importante para Doze mode
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload,
+    );
   }
 
   /// Configura uma notificação que se repete periodicamente
@@ -233,11 +261,42 @@ class NotificationService {
     String? payload,
   }) async {
     // TODO: Implementar plugin.periodicallyShow ou matchDateTimeComponents
+    await setupTimezone();
+    
+    // Define um horário padrão para a notificação diária (ex: 10:00 AM)
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, 10);
+    
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+
+    await plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        const NotificationDetails(
+        android: AndroidNotificationDetails(
+            'canal_recorrente_id',
+            'Recorrentes',
+            channelDescription: 'Canal para notificações diárias',
+            importance: Importance.max,
+            priority: Priority.high,
+        ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time, // O segredo da repetição diária
+        payload: payload,
+    );
   }
 
   /// Cancela uma notificação específica pelo ID
   Future<void> cancelNotification(int id) async {
     // TODO: Implementar plugin.cancel(id)
+    await plugin.cancel(id);
   }
 
   // =========================================================================
