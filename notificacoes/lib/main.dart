@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'services/notification_service.dart';
+import 'services/location_permition_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
